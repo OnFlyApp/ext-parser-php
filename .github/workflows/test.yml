@@ -1,0 +1,29 @@
+name: Test
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: CGO_ENABLED=0 go test -tags "grammar_subset grammar_subset_php" ./... -count=1 -timeout 300s
+      - name: Fuzz (short)
+        run: go test -run '^$' -tags 'grammar_subset grammar_subset_php' -fuzz FuzzParse -fuzztime 20s
+      - name: Build wasm twice, bytes must match
+        run: |
+          make wasm && cp bin/php-parser.wasm first.wasm
+          make clean wasm
+          cmp first.wasm bin/php-parser.wasm
+      - name: Run the wasm under wazero (same runtime as the CLI)
+        run: |
+          go run github.com/tetratelabs/wazero/cmd/wazero@v1.12.0 run bin/php-parser.wasm src/all.php < testdata/all.php > out.json
+          python3 - <<'PY'
+          import json
+          types = {c["type"] for c in json.load(open("out.json"))}
+          want = {"namespace","use","enum","enum_case","class","interface","trait","trait_use","method","property","constant","function","closure","statement","anonymous_class"}
+          assert want <= types, f"missing {want - types}"
+          PY

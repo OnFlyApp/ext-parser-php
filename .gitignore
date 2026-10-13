@@ -1,0 +1,29 @@
+# Build output from Makefile
+bin/
+*.wasm
+*.exe
+
+# Go workspace and testing
+vendor/
+*.test
+*.out
+coverage.txt
+cover.out
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS specific files (macOS / Windows)
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Onfly local testing directory
+.onfly/
