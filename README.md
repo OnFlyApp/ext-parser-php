@@ -29,12 +29,12 @@ Input is one file on stdin, argv[1] is its path, output is the standard `[]Chunk
 
 Metadata: `name`, `fqn`, `namespace`, `receiver`, `start_line`, `end_line`, and where they apply `signature`, `params`, `return_type`, `visibility`, `modifiers`, `attributes`, `extends`, `implements`, `backing_type`, `value`, `type`, `part`.
 
-Docblocks and `#[Attributes]` are part of the chunk. Bodies over 8 KB are split at line boundaries (`part=1/3`). Files over 2 MB yield `[]`. Syntax errors do not fail the file: what parsed is chunked and a warning goes to stderr.
+Docblocks and `#[Attributes]` are part of the chunk. Bodies over 8 KB are split at line boundaries (`part=1/3`). Files over 200 KiB yield `[]` and a stderr warning: parsing costs about 11 ms/KB under wazero and the host cancels a parse at 5 s. Declarations inside `if`/`try` blocks (`if (!function_exists(...)) { function ... }`) are chunked like top-level ones. Syntax errors do not fail the file: what parsed is chunked and a warning goes to stderr.
 
 ## Known limitations
 
 - The bundled tree-sitter-php grammar predates two PHP 8.5 constructs: clone-with (`clone($o, ['a' => 1])`) and `final` promoted properties. Each yields a local parse error and a stderr warning; every declaration is still chunked.
-- The wasm is about 18 MB (the tree-sitter runtime and PHP grammar). It parses a typical file well inside the host's 5 s limit.
+- The wasm is about 18 MB (tree-sitter runtime plus the PHP grammar). Expect about 4.7 s to compile it once per host start and about 90 ms per file, which is the grammar load. A 200 KiB file takes about 2 s.
 - `.blade.php` is not handled here; use a separate Blade plugin.
 
 ## Build

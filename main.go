@@ -8,13 +8,17 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/odvcencio/gotreesitter"
 	"github.com/odvcencio/gotreesitter/grammars"
 )
 
 const (
-	maxFileSize  = 2 << 20 // larger files are generated/vendored; the host also caps parse time
+	// The host cancels a parse after 5 s. Measured ~11 ms/KB under wazero
+	// (+~90 ms startup): 299 KiB took 3.2 s. 200 KiB leaves headroom for slower
+	// machines; bigger files are generated or vendored anyway.
+	maxFileSize  = 200 << 10
 	maxChunkSize = 8 << 10 // longer function bodies are split at line boundaries
 )
 
@@ -161,6 +165,9 @@ func (w *walker) emit(typ string, start, end uint32, meta map[string]string) {
 	for end > start && strings.TrimSpace(string(w.src[end-1:end])) == "" {
 		end--
 	}
+	if end <= start {
+		return
+	}
 	meta["start_line"] = strconv.Itoa(w.line(start))
 	meta["end_line"] = strconv.Itoa(w.line(end - 1))
 	content := string(w.src[start:end])
@@ -173,6 +180,9 @@ func (w *walker) emit(typ string, start, end uint32, meta map[string]string) {
 		cut := strings.LastIndex(content[:maxChunkSize], "\n")
 		if cut <= 0 {
 			cut = maxChunkSize
+			for cut > 0 && !utf8.RuneStart(content[cut]) {
+				cut--
+			}
 		}
 		parts = append(parts, content[:cut])
 		content = content[cut:]
@@ -197,8 +207,19 @@ func join(ns, name string) string {
 
 // ---- walk ----
 
-// block walks the statements of the program or a braced namespace body.
+var declTypes = []string{"function_definition", "class_declaration", "interface_declaration", "trait_declaration", "enum_declaration"}
+
+// containers hold nested statements; we only descend into them when they declare
+// something (`if (!function_exists('x')) { function x() {} }`).
+var containers = map[string]bool{
+	"if_statement": true, "else_clause": true, "else_if_clause": true, "compound_statement": true,
+	"colon_block": true, "try_statement": true, "catch_clause": true, "finally_clause": true,
+}
+
+// block walks the statements of the program, a braced namespace body, or a
+// container statement that declares something.
 func (w *walker) block(parent *gotreesitter.Node, ns string) {
+	nested := containers[w.typ(parent)]
 	var run []*gotreesitter.Node
 	flush := func() {
 		if len(run) == 0 {
@@ -228,6 +249,14 @@ func (w *walker) block(parent *gotreesitter.Node, ns string) {
 			flush()
 			w.constant(c, ns, "")
 		default:
+			if containers[t] && w.contains(c, declTypes...) {
+				flush()
+				w.block(c, ns)
+				continue
+			}
+			if nested && !strings.HasSuffix(t, "_statement") {
+				continue // conditions, keywords, catch types
+			}
 			if w.contains(c, "anonymous_function", "arrow_function") && w.typ(c) == "expression_statement" {
 				flush()
 				m := map[string]string{"name": "closure", "namespace": ns}
@@ -371,9 +400,9 @@ func (w *walker) method(n *gotreesitter.Node, ns, class string) {
 func (w *walker) property(n *gotreesitter.Node, ns, class string) {
 	var names []string
 	for _, e := range w.children(n, "property_element") {
-		names = append(names, strings.TrimPrefix(w.text(w.field(e, "name")), "$"))
-		if len(names) == 1 && w.field(e, "name") == nil {
-			names[0] = strings.TrimPrefix(strings.Fields(w.text(e))[0], "$")
+		for _, v := range w.children(e, "variable_name") {
+			names = append(names, strings.TrimPrefix(w.text(v), "$"))
+			break
 		}
 	}
 	name := strings.Join(names, ",")
@@ -384,6 +413,7 @@ func (w *walker) property(n *gotreesitter.Node, ns, class string) {
 	w.attributes(n, m)
 	w.modifiers(n, m)
 	w.emit("property", w.docStart(n), n.EndByte(), m)
+	w.anonymous(n, class)
 }
 
 func names0(n []string) string {
@@ -396,7 +426,10 @@ func names0(n []string) string {
 func (w *walker) constant(n *gotreesitter.Node, ns, class string) {
 	var names []string
 	for _, e := range w.children(n, "const_element") {
-		names = append(names, strings.Fields(w.text(e))[0])
+		for _, v := range w.children(e, "name") {
+			names = append(names, w.text(v))
+			break
+		}
 	}
 	name := strings.Join(names, ",")
 	m := map[string]string{"name": name, "namespace": ns}
@@ -409,13 +442,16 @@ func (w *walker) constant(n *gotreesitter.Node, ns, class string) {
 	w.attributes(n, m)
 	w.modifiers(n, m)
 	w.emit("constant", w.docStart(n), n.EndByte(), m)
+	if class != "" {
+		w.anonymous(n, class)
+	}
 }
 
 // anonymous emits a chunk for every `new class {}` found under n.
 func (w *walker) anonymous(n *gotreesitter.Node, owner string) {
 	if w.typ(n) == "anonymous_class" {
 		w.emit("anonymous_class", n.StartByte(), n.EndByte(), map[string]string{"name": "class@anonymous", "receiver": owner})
-		return
+		owner += "::class@anonymous"
 	}
 	for i := 0; i < n.ChildCount(); i++ {
 		w.anonymous(n.Child(i), owner)

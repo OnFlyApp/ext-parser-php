@@ -1,0 +1,282 @@
+[
+  {
+    "file_path": "src/all.php",
+    "type": "statement",
+    "content": "declare(strict_types=1);",
+    "metadata": {
+      "end_line": "3",
+      "name": "statements",
+      "namespace": "",
+      "start_line": "3"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "namespace",
+    "content": "namespace App\\Demo;",
+    "metadata": {
+      "end_line": "4",
+      "fqn": "App\\Demo",
+      "name": "App\\Demo",
+      "start_line": "4"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "use",
+    "content": "use Foo\\Bar;",
+    "metadata": {
+      "end_line": "6",
+      "name": "use Foo\\Bar;",
+      "namespace": "App\\Demo",
+      "start_line": "6"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "enum",
+    "content": "/** Status doc */\n#[Attr]\nenum Status: string implements HasLabel",
+    "metadata": {
+      "attributes": "#[Attr]",
+      "backing_type": "string",
+      "end_line": "10",
+      "fqn": "App\\Demo\\Status",
+      "implements": "HasLabel",
+      "name": "Status",
+      "namespace": "App\\Demo",
+      "start_line": "8"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "enum_case",
+    "content": "case Active = 'a';",
+    "metadata": {
+      "end_line": "11",
+      "fqn": "App\\Demo\\Status::Active",
+      "name": "Active",
+      "namespace": "App\\Demo",
+      "receiver": "App\\Demo\\Status",
+      "start_line": "11",
+      "value": "'a'"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "method",
+    "content": "public function label(): string { return $this-\u003ename; }",
+    "metadata": {
+      "end_line": "12",
+      "fqn": "App\\Demo\\Status::label",
+      "name": "label",
+      "namespace": "App\\Demo",
+      "params": "()",
+      "receiver": "App\\Demo\\Status",
+      "return_type": "string",
+      "signature": "public function label(): string",
+      "start_line": "12",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "class",
+    "content": "/** Doc */\nfinal class Svc extends Base implements A, B",
+    "metadata": {
+      "end_line": "16",
+      "extends": "Base",
+      "fqn": "App\\Demo\\Svc",
+      "implements": "A, B",
+      "modifiers": "final",
+      "name": "Svc",
+      "namespace": "App\\Demo",
+      "start_line": "15"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "trait_use",
+    "content": "use Loggable;",
+    "metadata": {
+      "end_line": "17",
+      "name": "Loggable",
+      "namespace": "App\\Demo",
+      "receiver": "App\\Demo\\Svc",
+      "start_line": "17"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "constant",
+    "content": "public const X = 1;",
+    "metadata": {
+      "end_line": "18",
+      "fqn": "App\\Demo\\Svc::X",
+      "name": "X",
+      "namespace": "App\\Demo",
+      "receiver": "App\\Demo\\Svc",
+      "start_line": "18",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "property",
+    "content": "public private(set) int $n = 0;",
+    "metadata": {
+      "end_line": "19",
+      "fqn": "App\\Demo\\Svc::$n",
+      "modifiers": "private(set)",
+      "name": "n",
+      "namespace": "App\\Demo",
+      "receiver": "App\\Demo\\Svc",
+      "start_line": "19",
+      "type": "int",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "method",
+    "content": "public function run(): void { $f = new class { public function x() {} }; }",
+    "metadata": {
+      "end_line": "20",
+      "fqn": "App\\Demo\\Svc::run",
+      "name": "run",
+      "namespace": "App\\Demo",
+      "params": "()",
+      "receiver": "App\\Demo\\Svc",
+      "return_type": "void",
+      "signature": "public function run(): void",
+      "start_line": "20",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "anonymous_class",
+    "content": "class { public function x() {} }",
+    "metadata": {
+      "end_line": "20",
+      "name": "class@anonymous",
+      "receiver": "App\\Demo\\Svc::run",
+      "start_line": "20"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "interface",
+    "content": "interface I",
+    "metadata": {
+      "end_line": "23",
+      "fqn": "App\\Demo\\I",
+      "name": "I",
+      "namespace": "App\\Demo",
+      "start_line": "23"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "method",
+    "content": "public function f();",
+    "metadata": {
+      "end_line": "23",
+      "fqn": "App\\Demo\\I::f",
+      "name": "f",
+      "namespace": "App\\Demo",
+      "params": "()",
+      "receiver": "App\\Demo\\I",
+      "signature": "public function f();",
+      "start_line": "23",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "trait",
+    "content": "trait T",
+    "metadata": {
+      "end_line": "24",
+      "fqn": "App\\Demo\\T",
+      "name": "T",
+      "namespace": "App\\Demo",
+      "start_line": "24"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "constant",
+    "content": "const TOP = 3;",
+    "metadata": {
+      "end_line": "25",
+      "fqn": "App\\Demo\\TOP",
+      "name": "TOP",
+      "namespace": "App\\Demo",
+      "start_line": "25"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "function",
+    "content": "function helper(int $a): int { return $a |\u003e abs(...); }",
+    "metadata": {
+      "end_line": "26",
+      "fqn": "App\\Demo\\helper",
+      "name": "helper",
+      "namespace": "App\\Demo",
+      "params": "(int $a)",
+      "return_type": "int",
+      "signature": "function helper(int $a): int",
+      "start_line": "26"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "closure",
+    "content": "$route = fn($x) =\u003e $x;",
+    "metadata": {
+      "end_line": "27",
+      "name": "closure",
+      "namespace": "App\\Demo",
+      "start_line": "27"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "statement",
+    "content": "define('A', 1);",
+    "metadata": {
+      "end_line": "28",
+      "name": "statements",
+      "namespace": "App\\Demo",
+      "start_line": "28"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "function",
+    "content": "#[\\NoDiscard]\nfunction nd(): int { return 1; }",
+    "metadata": {
+      "attributes": "#[\\NoDiscard]",
+      "end_line": "30",
+      "fqn": "App\\Demo\\nd",
+      "name": "nd",
+      "namespace": "App\\Demo",
+      "params": "()",
+      "return_type": "int",
+      "signature": "#[\\NoDiscard] function nd(): int",
+      "start_line": "29"
+    }
+  },
+  {
+    "file_path": "src/all.php",
+    "type": "statement",
+    "content": "$c = clone($o, ['a' =\u003e 1]);",
+    "metadata": {
+      "end_line": "31",
+      "name": "statements",
+      "namespace": "App\\Demo",
+      "start_line": "31"
+    }
+  }
+]

@@ -1,0 +1,149 @@
+[
+  {
+    "file_path": "src/conditional.php",
+    "type": "function",
+    "content": "/** Polyfill. */\n    function str_starts(string $h, string $n): bool { return strncmp($h, $n, strlen($n)) === 0; }",
+    "metadata": {
+      "end_line": "4",
+      "fqn": "str_starts",
+      "name": "str_starts",
+      "namespace": "",
+      "params": "(string $h, string $n)",
+      "return_type": "bool",
+      "signature": "function str_starts(string $h, string $n): bool",
+      "start_line": "3"
+    }
+  },
+  {
+    "file_path": "src/conditional.php",
+    "type": "class",
+    "content": "class Legacy",
+    "metadata": {
+      "end_line": "8",
+      "fqn": "Legacy",
+      "name": "Legacy",
+      "namespace": "",
+      "start_line": "8"
+    }
+  },
+  {
+    "file_path": "src/conditional.php",
+    "type": "method",
+    "content": "public function run() {}",
+    "metadata": {
+      "end_line": "8",
+      "fqn": "Legacy::run",
+      "name": "run",
+      "namespace": "",
+      "params": "()",
+      "receiver": "Legacy",
+      "signature": "public function run()",
+      "start_line": "8",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/conditional.php",
+    "type": "class",
+    "content": "class Modern",
+    "metadata": {
+      "end_line": "10",
+      "fqn": "Modern",
+      "name": "Modern",
+      "namespace": "",
+      "start_line": "10"
+    }
+  },
+  {
+    "file_path": "src/conditional.php",
+    "type": "method",
+    "content": "public function run() {}",
+    "metadata": {
+      "end_line": "10",
+      "fqn": "Modern::run",
+      "name": "run",
+      "namespace": "",
+      "params": "()",
+      "receiver": "Modern",
+      "signature": "public function run()",
+      "start_line": "10",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/conditional.php",
+    "type": "interface",
+    "content": "interface Maybe",
+    "metadata": {
+      "end_line": "14",
+      "fqn": "Maybe",
+      "name": "Maybe",
+      "namespace": "",
+      "start_line": "14"
+    }
+  },
+  {
+    "file_path": "src/conditional.php",
+    "type": "class",
+    "content": "class Holder",
+    "metadata": {
+      "end_line": "19",
+      "fqn": "Holder",
+      "name": "Holder",
+      "namespace": "",
+      "start_line": "19"
+    }
+  },
+  {
+    "file_path": "src/conditional.php",
+    "type": "property",
+    "content": "public $anon;",
+    "metadata": {
+      "end_line": "20",
+      "fqn": "Holder::$anon",
+      "name": "anon",
+      "namespace": "",
+      "receiver": "Holder",
+      "start_line": "20",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/conditional.php",
+    "type": "method",
+    "content": "public function make() {\n        return new class {\n            public function inner() { return new class {}; }\n        };\n    }",
+    "metadata": {
+      "end_line": "25",
+      "fqn": "Holder::make",
+      "name": "make",
+      "namespace": "",
+      "params": "()",
+      "receiver": "Holder",
+      "signature": "public function make()",
+      "start_line": "21",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/conditional.php",
+    "type": "anonymous_class",
+    "content": "class {\n            public function inner() { return new class {}; }\n        }",
+    "metadata": {
+      "end_line": "24",
+      "name": "class@anonymous",
+      "receiver": "Holder::make",
+      "start_line": "22"
+    }
+  },
+  {
+    "file_path": "src/conditional.php",
+    "type": "anonymous_class",
+    "content": "class {}",
+    "metadata": {
+      "end_line": "23",
+      "name": "class@anonymous",
+      "receiver": "Holder::make::class@anonymous",
+      "start_line": "23"
+    }
+  }
+]

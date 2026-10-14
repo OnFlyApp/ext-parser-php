@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func kinds(t *testing.T, src string) map[string]Chunk {
@@ -80,8 +84,9 @@ func TestLongFunctionIsSplit(t *testing.T) {
 func FuzzParse(f *testing.F) {
 	f.Add([]byte("<?php class A { function f() {} }"))
 	f.Fuzz(func(t *testing.T, b []byte) {
-		if _, err := parse("f.php", b); err != nil {
-			t.Skip()
+		// Syntax garbage is fine; a recovered panic is not.
+		if _, err := parse("f.php", b); err != nil && strings.Contains(err.Error(), "panic") {
+			t.Fatal(err)
 		}
 	})
 }
@@ -120,6 +125,94 @@ func TestKnownGrammarGapsDoNotLoseDeclarations(t *testing.T) {
 	for _, want := range []string{"class A", "method A::__construct", "function f"} {
 		if _, ok := got[want]; !ok {
 			t.Errorf("lost %q; have %v", want, keys(got))
+		}
+	}
+}
+
+func TestConditionalDeclarations(t *testing.T) {
+	src, err := os.ReadFile("testdata/conditional.php")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := kinds(t, string(src))
+	for _, want := range []string{"function str_starts", "class Legacy", "method Legacy::run", "class Modern", "interface Maybe"} {
+		if _, ok := got[want]; !ok {
+			t.Errorf("missing %q; have %v", want, keys(got))
+		}
+	}
+	if c := got["function str_starts"]; !strings.HasPrefix(c.Content, "/** Polyfill. */") {
+		t.Errorf("docblock lost: %q", c.Content)
+	}
+}
+
+func TestNestedAnonymousClasses(t *testing.T) {
+	chunks, _ := parse("a.php", []byte("<?php class H { function m() { return new class { function i() { return new class {}; } }; } }"))
+	n := 0
+	for _, c := range chunks {
+		if c.Type == "anonymous_class" {
+			n++
+		}
+	}
+	if n != 2 {
+		t.Fatalf("want 2 anonymous classes, got %d", n)
+	}
+}
+
+func TestOversizedFileIsSkipped(t *testing.T) {
+	src := "<?php\n" + strings.Repeat("// padding padding padding\n", maxFileSize/20)
+	chunks, err := parse("big.php", []byte(src))
+	if err != nil || chunks == nil || len(chunks) != 0 {
+		t.Fatalf("want [], got %d chunks, err %v", len(chunks), err)
+	}
+}
+
+func TestSplitKeepsValidUTF8(t *testing.T) {
+	body := strings.Repeat("$s = 'ёёёёёёёёёёёёёёёёёёёё'; ", 600) // one long line: forces the no-newline fallback
+	chunks, err := parse("a.php", []byte("<?php\nfunction u() { "+body+"}\n"))
+	if err != nil || len(chunks) < 2 {
+		t.Fatalf("expected split, got %d, err %v", len(chunks), err)
+	}
+	for _, c := range chunks {
+		if !utf8.ValidString(c.Content) {
+			t.Fatalf("invalid utf-8 in part %s", c.Metadata["part"])
+		}
+	}
+}
+
+// Golden files pin content and metadata, not just chunk presence. Regenerate
+// with: go test -tags "grammar_subset grammar_subset_php" -run Golden -update
+var update = flag.Bool("update", false, "rewrite golden files")
+
+func TestGolden(t *testing.T) {
+	files, _ := filepath.Glob("testdata/*.php")
+	phtml, _ := filepath.Glob("testdata/*.phtml")
+	files = append(files, phtml...)
+	if len(files) == 0 {
+		t.Fatal("no fixtures")
+	}
+	for _, f := range files {
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		chunks, err := parse("src/"+filepath.Base(f), src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, _ := json.MarshalIndent(chunks, "", "  ")
+		golden := strings.TrimSuffix(f, filepath.Ext(f)) + ".golden.json"
+		if *update {
+			if err := os.WriteFile(golden, append(got, '\n'), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		want, err := os.ReadFile(golden)
+		if err != nil {
+			t.Fatalf("%v (run with -update)", err)
+		}
+		if strings.TrimSpace(string(want)) != string(got) {
+			t.Errorf("%s differs from %s (run with -update if intended)", f, golden)
 		}
 	}
 }
