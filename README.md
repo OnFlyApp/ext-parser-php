@@ -29,12 +29,12 @@ Input is one file on stdin, argv[1] is its path, output is the standard `[]Chunk
 
 Metadata: `name`, `fqn`, `namespace`, `receiver`, `start_line`, `end_line`, and where they apply `signature`, `params`, `return_type`, `visibility`, `modifiers`, `attributes`, `extends`, `implements`, `backing_type`, `value`, `type`, `part`.
 
-Docblocks and `#[Attributes]` are part of the chunk. Bodies over 8 KB are split at line boundaries (`part=1/3`). Files over 200 KiB yield `[]` and a stderr warning: parsing costs about 11 ms/KB under wazero and the host cancels a parse at 5 s. Declarations inside `if`/`try` blocks (`if (!function_exists(...)) { function ... }`) are chunked like top-level ones. Syntax errors do not fail the file: what parsed is chunked and a warning goes to stderr.
+Docblocks and `#[Attributes]` are part of the chunk. Bodies over 8 KB are split at line boundaries (`part=1/3`). Files over 80 KiB are not parsed: they come back as plain `file` chunks (`reason=too_large`), and files over 2 MiB yield `[]`. The host cancels a parse at 5 s (and then keeps the stale chunks), while parsing costs about 11 ms/KB on a laptop and about 33 ms/KB on a CI-class machine. Declarations inside `if`/`try` blocks (`if (!function_exists(...)) { function ... }`) are chunked like top-level ones. Syntax errors do not fail the file: what parsed is chunked and a warning goes to stderr.
 
 ## Known limitations
 
 - The bundled tree-sitter-php grammar predates two PHP 8.5 constructs: clone-with (`clone($o, ['a' => 1])`) and `final` promoted properties. Each yields a local parse error and a stderr warning; every declaration is still chunked.
-- The wasm is about 18 MB (tree-sitter runtime plus the PHP grammar). Expect about 4.7 s to compile it once per host start and about 90 ms per file, which is the grammar load. A 200 KiB file takes about 2 s.
+- The wasm is about 18 MB (tree-sitter runtime plus the PHP grammar). Expect about 4.7 s to compile it once per host start and about 90 ms per file, which is the grammar load. An 80 KiB file takes about 1 s on a laptop.
 - `.blade.php` is not handled here; use a separate Blade plugin.
 
 ## Build

@@ -15,11 +15,14 @@ import (
 )
 
 const (
-	// The host cancels a parse after 5 s. Measured ~11 ms/KB under wazero
-	// (+~90 ms startup): 299 KiB took 3.2 s. 200 KiB leaves headroom for slower
-	// machines; bigger files are generated or vendored anyway.
-	maxFileSize  = 200 << 10
-	maxChunkSize = 8 << 10 // longer function bodies are split at line boundaries
+	// The host cancels a parse after 5 s, and a cancelled file keeps its stale
+	// chunks. Parsing costs ~11 ms/KB on a laptop and ~33 ms/KB on a CI runner
+	// under wazero. A deadline inside the plugin is not an option: the host does
+	// not enable wazero's real clocks, so time.Now() is fake there. Big files are
+	// therefore not parsed; they become plain `file` chunks.
+	maxParseSize    = 80 << 10
+	maxFallbackSize = 2 << 20 // above this the file is skipped (generated/vendored)
+	maxChunkSize    = 8 << 10 // longer function bodies are split at line boundaries
 )
 
 // Chunk is the universal contract defined in the Onfly SDD.
@@ -74,12 +77,21 @@ func parse(filePath string, src []byte) (chunks []Chunk, err error) {
 	if len(src) == 0 {
 		return chunks, nil
 	}
-	if len(src) > maxFileSize {
+	w := &walker{src: src, file: filePath, lines: []int{0}, chunks: chunks}
+	for i, b := range src {
+		if b == '\n' {
+			w.lines = append(w.lines, i+1)
+		}
+	}
+	switch {
+	case len(src) > maxFallbackSize:
 		fmt.Fprintf(os.Stderr, "onfly-php-parser: %s is %d bytes, skipped\n", filePath, len(src))
 		return chunks, nil
+	case len(src) > maxParseSize:
+		return w.wholeFile("too_large"), nil
 	}
-	lang := grammars.PhpLanguage()
-	tree, err := gotreesitter.NewParser(lang).Parse(src)
+	w.lang = grammars.PhpLanguage()
+	tree, err := gotreesitter.NewParser(w.lang).Parse(src)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse php file: %w", err)
 	}
@@ -87,18 +99,22 @@ func parse(filePath string, src []byte) (chunks []Chunk, err error) {
 	if root.HasError() {
 		fmt.Fprintf(os.Stderr, "onfly-php-parser: %s has syntax errors, chunking what parsed\n", filePath)
 	}
-	w := &walker{src: src, lang: lang, file: filePath, lines: []int{0}, chunks: chunks}
-	for i, b := range src {
-		if b == '\n' {
-			w.lines = append(w.lines, i+1)
-		}
-	}
 	w.block(root, "")
 	if len(w.chunks) == 0 {
 		// Nothing declarable (template, empty script): keep the whole file searchable.
-		w.emit("file", 0, uint32(len(src)), map[string]string{"name": filePath})
+		return w.wholeFile(""), nil
 	}
 	return w.chunks, nil
+}
+
+// wholeFile returns the file as `file` chunks (split by emit at line boundaries).
+func (w *walker) wholeFile(reason string) []Chunk {
+	meta := map[string]string{"name": w.file}
+	if reason != "" {
+		meta["reason"] = reason
+	}
+	w.emit("file", 0, uint32(len(w.src)), meta)
+	return w.chunks
 }
 
 // ---- helpers ----

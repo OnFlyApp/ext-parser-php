@@ -158,9 +158,21 @@ func TestNestedAnonymousClasses(t *testing.T) {
 	}
 }
 
-func TestOversizedFileIsSkipped(t *testing.T) {
-	src := "<?php\n" + strings.Repeat("// padding padding padding\n", maxFileSize/20)
+func TestOversizedFileBecomesPlainText(t *testing.T) {
+	src := "<?php\n" + strings.Repeat("// padding padding padding\n", maxParseSize/20)
 	chunks, err := parse("big.php", []byte(src))
+	if err != nil || len(chunks) < 2 {
+		t.Fatalf("want split file chunks, got %d, err %v", len(chunks), err)
+	}
+	for _, c := range chunks {
+		if c.Type != "file" || c.Metadata["reason"] != "too_large" {
+			t.Fatalf("unexpected chunk %s %v", c.Type, c.Metadata)
+		}
+	}
+}
+
+func TestHugeFileIsSkipped(t *testing.T) {
+	chunks, err := parse("huge.php", []byte("<?php\n"+strings.Repeat("x", maxFallbackSize)))
 	if err != nil || chunks == nil || len(chunks) != 0 {
 		t.Fatalf("want [], got %d chunks, err %v", len(chunks), err)
 	}

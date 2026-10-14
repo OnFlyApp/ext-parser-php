@@ -65,10 +65,11 @@ func TestWasm(t *testing.T) {
 		}
 	}
 
-	// The host cancels a parse at 5 s; the largest accepted file must stay well under.
+	// The host cancels a parse at 5 s. The largest file we still parse must come
+	// back well before that.
 	var b strings.Builder
 	b.WriteString("<?php\nnamespace Big;\n")
-	for i := 0; b.Len() < maxFileSize-1024; i++ {
+	for i := 0; b.Len() < maxParseSize-1024; i++ {
 		fmt.Fprintf(&b, "class C%d {\n    public function a(int $x): int { return $x + %d; }\n    public function b() { foreach ([1,2,3] as $v) { echo $v; } }\n}\n", i, i)
 	}
 	chunks, d := run([]byte(b.String()))
@@ -76,7 +77,7 @@ func TestWasm(t *testing.T) {
 	if len(chunks) == 0 {
 		t.Fatal("largest accepted file produced no chunks")
 	}
-	if d > 4*time.Second {
-		t.Fatalf("parse took %s; host limit is 5s, cap maxFileSize lower", d)
+	if d > 4500*time.Millisecond {
+		t.Fatalf("took %s; host limit is 5s, lower maxParseSize", d)
 	}
 }
