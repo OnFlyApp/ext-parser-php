@@ -1,0 +1,22 @@
+name: Test
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: CGO_ENABLED=0 go test -tags "grammar_subset grammar_subset_php" ./... -count=1 -timeout 300s
+      - name: Fuzz (short)
+        run: go test -run '^$' -tags 'grammar_subset grammar_subset_php' -fuzz FuzzParse -fuzztime 20s
+      - name: Build wasm twice, bytes must match
+        run: |
+          make wasm && cp bin/php-parser.wasm first.wasm
+          make clean wasm
+          cmp first.wasm bin/php-parser.wasm
+      - name: Wasm under wazero (chunk types, size budget, parse time at the file-size cap)
+        run: PHP_WASM=bin/php-parser.wasm go test -tags 'grammar_subset grammar_subset_php' -run TestWasm -v -count=1 .

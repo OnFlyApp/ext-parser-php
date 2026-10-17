@@ -1,0 +1,75 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Tag must be on main
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "tag $GITHUB_REF_NAME is not on main" >&2; exit 1; }
+      - name: Check the tag
+        id: ver
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          python3 - <<'PY' "$version"
+          import re, sys
+          ver = sys.argv[1]
+          if re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?", ver) is None:
+              sys.exit("tag must be vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-rc.N")
+          PY
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$version" in *-rc.*) echo "rc=true" >> "$GITHUB_OUTPUT" ;; *) echo "rc=false" >> "$GITHUB_OUTPUT" ;; esac
+      - name: Test and build
+        run: |
+          CGO_ENABLED=0 go test -tags "grammar_subset grammar_subset_php" ./... -count=1
+          make wasm
+          cp bin/php-parser.wasm php-parser.wasm
+      - name: Checksum
+        id: sum
+        run: echo "sha=$(sha256sum php-parser.wasm | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release download "$tag" --pattern php-parser.wasm --output existing.wasm
+            if ! cmp -s existing.wasm php-parser.wasm; then
+              echo "release $tag already has different bytes" >&2
+              exit 1
+            fi
+          else
+            gh release create "$tag" php-parser.wasm $([ "${{ steps.ver.outputs.rc }}" = true ] && echo --prerelease) --title "$tag" --notes "PHP parser ${{ steps.ver.outputs.version }}"
+          fi
+      - name: Update the registry
+        if: steps.ver.outputs.rc == 'false'
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          git clone https://github.com/OnFlyApp/registry.git registry-repo
+          python3 registry-repo/scripts/upsert.py registry-repo/registry.json \
+            --plugin php \
+            --version "${{ steps.ver.outputs.version }}" \
+            --url "https://github.com/OnFlyApp/ext-parser-php/releases/download/${GITHUB_REF_NAME}/php-parser.wasm" \
+            --sha256 "${{ steps.sum.outputs.sha }}" \
+            --extensions .php,.phtml,.inc
+          git -C registry-repo add -- registry.json
+          if git -C registry-repo diff --cached --quiet; then
+            exit 0
+          fi
+          git -C registry-repo -c user.name="onfly-release" -c user.email="github-actions[bot]@users.noreply.github.com" \
+            commit -m "Add php ${{ steps.ver.outputs.version }}."
+          git -C registry-repo remote set-url origin "https://x-access-token:${REGISTRY_TOKEN}@github.com/OnFlyApp/registry.git"
+          git -C registry-repo pull --rebase origin main
+          git -C registry-repo push origin main

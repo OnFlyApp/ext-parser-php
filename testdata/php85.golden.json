@@ -1,0 +1,127 @@
+[
+  {
+    "file_path": "src/php85.php",
+    "type": "namespace",
+    "content": "namespace App;",
+    "metadata": {
+      "end_line": "2",
+      "fqn": "App",
+      "name": "App",
+      "start_line": "2"
+    }
+  },
+  {
+    "file_path": "src/php85.php",
+    "type": "class",
+    "content": "class P",
+    "metadata": {
+      "end_line": "4",
+      "fqn": "App\\P",
+      "name": "P",
+      "namespace": "App",
+      "start_line": "4"
+    }
+  },
+  {
+    "file_path": "src/php85.php",
+    "type": "property",
+    "content": "public string $name { get =\u003e strtoupper($this-\u003ename); set { $this-\u003ename = $value; } }",
+    "metadata": {
+      "end_line": "5",
+      "fqn": "App\\P::$name",
+      "name": "name",
+      "namespace": "App",
+      "receiver": "App\\P",
+      "start_line": "5",
+      "type": "string",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/php85.php",
+    "type": "method",
+    "content": "public function __construct(private readonly string $s = '') {}",
+    "metadata": {
+      "end_line": "6",
+      "fqn": "App\\P::__construct",
+      "name": "__construct",
+      "namespace": "App",
+      "params": "(private readonly string $s = '')",
+      "receiver": "App\\P",
+      "signature": "public function __construct(private readonly string $s = '')",
+      "start_line": "6",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/php85.php",
+    "type": "property",
+    "content": "#[\\Override]\n    public int $x = 1;",
+    "metadata": {
+      "attributes": "#[\\Override]",
+      "end_line": "8",
+      "fqn": "App\\P::$x",
+      "name": "x",
+      "namespace": "App",
+      "receiver": "App\\P",
+      "start_line": "7",
+      "type": "int",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/php85.php",
+    "type": "constant",
+    "content": "#[\\Deprecated]\n    const OLD = 1;",
+    "metadata": {
+      "attributes": "#[\\Deprecated]",
+      "end_line": "10",
+      "fqn": "App\\P::OLD",
+      "name": "OLD",
+      "namespace": "App",
+      "receiver": "App\\P",
+      "start_line": "9"
+    }
+  },
+  {
+    "file_path": "src/php85.php",
+    "type": "class",
+    "content": "final class Q",
+    "metadata": {
+      "end_line": "12",
+      "fqn": "App\\Q",
+      "modifiers": "final",
+      "name": "Q",
+      "namespace": "App",
+      "start_line": "12"
+    }
+  },
+  {
+    "file_path": "src/php85.php",
+    "type": "constant",
+    "content": "public const F = static fn($x) =\u003e $x * 2;",
+    "metadata": {
+      "end_line": "12",
+      "fqn": "App\\Q::F",
+      "name": "F",
+      "namespace": "App",
+      "receiver": "App\\Q",
+      "start_line": "12",
+      "visibility": "public"
+    }
+  },
+  {
+    "file_path": "src/php85.php",
+    "type": "function",
+    "content": "function piped($a) { return $a |\u003e trim(...) |\u003e strlen(...); }",
+    "metadata": {
+      "end_line": "13",
+      "fqn": "App\\piped",
+      "name": "piped",
+      "namespace": "App",
+      "params": "($a)",
+      "signature": "function piped($a)",
+      "start_line": "13"
+    }
+  }
+]
