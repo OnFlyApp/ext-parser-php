@@ -44,6 +44,10 @@ func main() {
 	if len(os.Args) < 2 {
 		fatalError(fmt.Errorf("missing file path argument"))
 	}
+	if os.Args[1] == "--batch" {
+		runBatch()
+		return
+	}
 	filePath := os.Args[1]
 	src, err := io.ReadAll(os.Stdin)
 	if err != nil {
@@ -253,8 +257,7 @@ func (w *walker) block(parent *gotreesitter.Node, ns string) {
 			flush()
 			ns = w.namespace(c, ns)
 		case "namespace_use_declaration":
-			flush()
-			w.emit("use", c.StartByte(), c.EndByte(), map[string]string{"name": strings.Join(strings.Fields(w.text(c)), " "), "namespace": ns})
+			flush() // imports are not chunks: the host resolves them from the source
 		case "function_definition":
 			flush()
 			w.function(c, ns)
@@ -290,12 +293,7 @@ func (w *walker) block(parent *gotreesitter.Node, ns string) {
 // namespace emits the header chunk and returns the namespace that applies afterwards.
 func (w *walker) namespace(n *gotreesitter.Node, outer string) string {
 	name := w.text(w.field(n, "name"))
-	body := w.field(n, "body")
-	end := n.EndByte()
-	if body != nil {
-		end = body.StartByte()
-	}
-	w.emit("namespace", n.StartByte(), end, map[string]string{"name": name, "fqn": name})
+	body := w.field(n, "body") // the header is not a chunk: every chunk carries its namespace
 	if body != nil {
 		w.block(body, name)
 		return outer

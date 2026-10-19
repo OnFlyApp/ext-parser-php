@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"os"
@@ -34,7 +35,6 @@ func TestAllChunkTypes(t *testing.T) {
 	}
 	got := kinds(t, string(src))
 	for _, want := range []string{
-		`namespace App\Demo`, `use use Foo\Bar;`,
 		`enum App\Demo\Status`, `enum_case App\Demo\Status::Active`, `method App\Demo\Status::label`,
 		`class App\Demo\Svc`, `trait_use Loggable`, `constant App\Demo\Svc::X`, `property App\Demo\Svc::$n`,
 		`method App\Demo\Svc::run`, `anonymous_class class@anonymous`,
@@ -43,6 +43,11 @@ func TestAllChunkTypes(t *testing.T) {
 	} {
 		if _, ok := got[want]; !ok {
 			t.Errorf("missing chunk %q; have %v", want, keys(got))
+		}
+	}
+	for k := range got {
+		if strings.HasPrefix(k, "use ") || strings.HasPrefix(k, "namespace ") {
+			t.Errorf("imports and namespace headers are not chunks: %q", k)
 		}
 	}
 	if c := got[`class App\Demo\Svc`]; strings.Contains(c.Content, "run()") || c.Metadata["extends"] != "Base" || c.Metadata["implements"] != "A, B" {
@@ -225,6 +230,40 @@ func TestGolden(t *testing.T) {
 		}
 		if strings.TrimSpace(string(want)) != string(got) {
 			t.Errorf("%s differs from %s (run with -update if intended)", f, golden)
+		}
+	}
+}
+
+func TestBatchAnswersOneLinePerFile(t *testing.T) {
+	var in, out bytes.Buffer
+	enc := json.NewEncoder(&in)
+	for _, f := range []struct{ path, src string }{
+		{"a.php", "<?php\nfinal class A { public function f(): int { return 1; } }\n"},
+		{"b.php", "<?php\nfunction g() {}\n"},
+	} {
+		if err := enc.Encode(batchRequest{Path: f.path, Content: []byte(f.src)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := serveBatch(&in, &out); err != nil {
+		t.Fatal(err)
+	}
+	dec := json.NewDecoder(&out)
+	var ready map[string]string
+	if err := dec.Decode(&ready); err != nil || ready["ready"] != batchProtocol {
+		t.Fatalf("%v %v", ready, err)
+	}
+	for i, want := range []string{"A", "g"} {
+		var resp batchResponse
+		if err := dec.Decode(&resp); err != nil || resp.Error != "" || len(resp.Chunks) == 0 {
+			t.Fatalf("%d: %+v %v", i, resp, err)
+		}
+		found := false
+		for _, c := range resp.Chunks {
+			found = found || c.Metadata["name"] == want
+		}
+		if !found {
+			t.Fatalf("%d: no %q in %+v", i, want, resp.Chunks)
 		}
 	}
 }

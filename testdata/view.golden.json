@@ -12,17 +12,6 @@
   },
   {
     "file_path": "src/view.phtml",
-    "type": "namespace",
-    "content": "namespace Views;",
-    "metadata": {
-      "end_line": "4",
-      "fqn": "Views",
-      "name": "Views",
-      "start_line": "4"
-    }
-  },
-  {
-    "file_path": "src/view.phtml",
     "type": "function",
     "content": "function render(array $items): string {\n    return implode(',', $items);\n}",
     "metadata": {

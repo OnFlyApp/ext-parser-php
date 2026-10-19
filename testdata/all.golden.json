@@ -12,28 +12,6 @@
   },
   {
     "file_path": "src/all.php",
-    "type": "namespace",
-    "content": "namespace App\\Demo;",
-    "metadata": {
-      "end_line": "4",
-      "fqn": "App\\Demo",
-      "name": "App\\Demo",
-      "start_line": "4"
-    }
-  },
-  {
-    "file_path": "src/all.php",
-    "type": "use",
-    "content": "use Foo\\Bar;",
-    "metadata": {
-      "end_line": "6",
-      "name": "use Foo\\Bar;",
-      "namespace": "App\\Demo",
-      "start_line": "6"
-    }
-  },
-  {
-    "file_path": "src/all.php",
     "type": "enum",
     "content": "/** Status doc */\n#[Attr]\nenum Status: string implements HasLabel",
     "metadata": {

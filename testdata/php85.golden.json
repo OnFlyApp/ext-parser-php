@@ -1,17 +1,6 @@
 [
   {
     "file_path": "src/php85.php",
-    "type": "namespace",
-    "content": "namespace App;",
-    "metadata": {
-      "end_line": "2",
-      "fqn": "App",
-      "name": "App",
-      "start_line": "2"
-    }
-  },
-  {
-    "file_path": "src/php85.php",
     "type": "class",
     "content": "class P",
     "metadata": {
