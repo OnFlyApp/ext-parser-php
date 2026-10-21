@@ -284,7 +284,7 @@ func TestHandlersAndTypeNames(t *testing.T) {
 	const domain = `App\Billing\Domain\`
 	cases := []struct{ key, paramTypes, handles, typeFQN string }{
 		{"method __construct", `App\Billing\Application\Repo,App\Billing\Application\Calculator`, "", ""},
-		{"method __invoke", domain + "ClawBack", domain + "ClawBack", ""},
+		{"method __invoke", domain + "CancelOrder", domain + "CancelOrder", ""},
 		{"method handle", domain + "Refund," + domain + "Credit", "", ""}, // a union handles no one thing
 		{"method onRefunded", `Vendor\Events\Refunded`, `Vendor\Events\Refunded`, ""},
 		{"method handleCredit", domain + "Credit", domain + "Credit", ""},

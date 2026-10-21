@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Billing\Application;
 
-use App\Billing\Domain\ClawBack;
+use App\Billing\Domain\CancelOrder;
 use App\Billing\Domain\{Refund, Credit as CreditNote};
 use function App\helper;
 
-final class ClawBackHandler
+final class CancelOrderHandler
 {
     private Logger $logger;
 
     public function __construct(private Repo $repo, private ?Calculator $calc = null, int $retries = 3) {}
 
-    public function __invoke(ClawBack $command): void {}
+    public function __invoke(CancelOrder $command): void {}
 
     public function handle(Refund|CreditNote $either): void {}
 
