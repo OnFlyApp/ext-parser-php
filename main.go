@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -63,6 +64,7 @@ func main() {
 }
 
 type walker struct {
+	uses   map[string]string // alias -> qualified name, from the file's `use` statements
 	src    []byte
 	lang   *gotreesitter.Language
 	file   string
@@ -81,7 +83,7 @@ func parse(filePath string, src []byte) (chunks []Chunk, err error) {
 	if len(src) == 0 {
 		return chunks, nil
 	}
-	w := &walker{src: src, file: filePath, lines: []int{0}, chunks: chunks}
+	w := &walker{src: src, file: filePath, lines: []int{0}, chunks: chunks, uses: map[string]string{}}
 	for i, b := range src {
 		if b == '\n' {
 			w.lines = append(w.lines, i+1)
@@ -257,7 +259,8 @@ func (w *walker) block(parent *gotreesitter.Node, ns string) {
 			flush()
 			ns = w.namespace(c, ns)
 		case "namespace_use_declaration":
-			flush() // imports are not chunks: the host resolves them from the source
+			flush() // imports are not chunks: the host resolves calls from the source; here they qualify type names
+			w.addUses(w.text(c))
 		case "function_definition":
 			flush()
 			w.function(c, ns)
@@ -321,6 +324,9 @@ func (w *walker) callable(n *gotreesitter.Node, m map[string]string) {
 	}
 	if r := w.field(n, "return_type"); r != nil {
 		m["return_type"] = w.text(r)
+	}
+	if types := w.paramTypes(n, m["namespace"]); len(types) > 0 {
+		m["param_types"] = strings.Join(types, ",")
 	}
 	w.attributes(n, m)
 }
@@ -407,6 +413,9 @@ func (w *walker) method(n *gotreesitter.Node, ns, class string) {
 	m := map[string]string{"name": name, "fqn": class + "::" + name, "receiver": class, "namespace": ns}
 	w.callable(n, m)
 	w.modifiers(n, m)
+	if h := w.handles(n, name, m["namespace"]); h != "" {
+		m["handles"] = h
+	}
 	w.emit("method", w.docStart(n), n.EndByte(), m)
 	w.anonymous(n, class+"::"+name)
 }
@@ -423,6 +432,9 @@ func (w *walker) property(n *gotreesitter.Node, ns, class string) {
 	m := map[string]string{"name": name, "fqn": class + "::$" + names0(names), "receiver": class, "namespace": ns}
 	if t := w.field(n, "type"); t != nil {
 		m["type"] = w.text(t)
+		if q := w.qualify(m["type"], ns); len(q) > 0 {
+			m["type_fqn"] = strings.Join(q, ",")
+		}
 	}
 	w.attributes(n, m)
 	w.modifiers(n, m)
@@ -470,4 +482,134 @@ func (w *walker) anonymous(n *gotreesitter.Node, owner string) {
 	for i := 0; i < n.ChildCount(); i++ {
 		w.anonymous(n.Child(i), owner)
 	}
+}
+
+// ---- types ----
+
+var useClause = regexp.MustCompile(`([\\\w]+)(?:\s+as\s+(\w+))?`)
+
+// addUses records the classes a `use` statement imports. `use function` and
+// `use const` import no class. Grouped imports (use A\{B, C as D}) are expanded.
+func (w *walker) addUses(decl string) {
+	body := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(decl), "use")), ";"))
+	if strings.HasPrefix(body, "function ") || strings.HasPrefix(body, "const ") {
+		return
+	}
+	add := func(prefix, clause string) {
+		m := useClause.FindStringSubmatch(strings.TrimSpace(clause))
+		if m == nil {
+			return
+		}
+		full := strings.TrimPrefix(prefix+m[1], `\`)
+		alias := m[2]
+		if alias == "" {
+			alias = full[strings.LastIndex(full, `\`)+1:]
+		}
+		w.uses[alias] = full
+	}
+	if open := strings.Index(body, "{"); open >= 0 {
+		prefix := strings.TrimSpace(body[:open])
+		for _, clause := range strings.Split(strings.Trim(body[open:], "{} \n"), ",") {
+			add(prefix, clause)
+		}
+		return
+	}
+	for _, clause := range strings.Split(body, ",") {
+		add("", clause)
+	}
+}
+
+var builtinTypes = map[string]bool{
+	"int": true, "float": true, "string": true, "bool": true, "array": true, "callable": true, "iterable": true,
+	"object": true, "mixed": true, "void": true, "null": true, "never": true, "false": true, "true": true,
+	"self": true, "static": true, "parent": true,
+}
+
+// qualify turns a type declaration (?Foo, Foo|Bar, \Baz\Qux) into the qualified
+// names of the classes in it, through the file's imports and namespace. Scalar
+// and pseudo types are left out.
+func (w *walker) qualify(decl, ns string) []string {
+	var out []string
+	for _, part := range strings.FieldsFunc(decl, func(r rune) bool { return r == '|' || r == '&' || r == '(' || r == ')' || r == '?' || r == ' ' }) {
+		if builtinTypes[strings.ToLower(part)] {
+			continue
+		}
+		var full string
+		switch head, rest, _ := strings.Cut(part, `\`); {
+		case strings.HasPrefix(part, `\`):
+			full = strings.TrimPrefix(part, `\`)
+		case w.uses[head] != "":
+			full = w.uses[head]
+			if rest != "" {
+				full += `\` + rest
+			}
+		default:
+			full = join(ns, part)
+		}
+		out = append(out, full)
+	}
+	return out
+}
+
+// paramTypes lists, in order, the classes the parameters are typed with. A
+// promoted constructor parameter counts: it is a property of that type.
+func (w *walker) paramTypes(fn *gotreesitter.Node, ns string) []string {
+	params := w.field(fn, "parameters")
+	if params == nil {
+		return nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, p := range w.children(params, "simple_parameter", "variadic_parameter", "property_promotion_parameter") {
+		t := w.field(p, "type")
+		if t == nil {
+			continue
+		}
+		for _, q := range w.qualify(w.text(t), ns) {
+			if !seen[q] {
+				seen[q] = true
+				out = append(out, q)
+			}
+		}
+	}
+	return out
+}
+
+// handles is the class a method handles when it is a handler or listener entry:
+// __invoke, handle, execute, handle* or on*, whose first parameter is typed with
+// one class (handle(SomeCommand $c), __invoke(SomeEvent $e)). A union type is
+// not a handler of one thing, so it yields nothing.
+func (w *walker) handles(fn *gotreesitter.Node, name, ns string) string {
+	if !handlerName(name) {
+		return ""
+	}
+	params := w.field(fn, "parameters")
+	if params == nil {
+		return ""
+	}
+	first := w.children(params, "simple_parameter", "variadic_parameter", "property_promotion_parameter")
+	if len(first) == 0 {
+		return ""
+	}
+	t := w.field(first[0], "type")
+	if t == nil {
+		return ""
+	}
+	if q := w.qualify(w.text(t), ns); len(q) == 1 && !strings.ContainsAny(w.text(t), "|&") {
+		return q[0]
+	}
+	return ""
+}
+
+func handlerName(name string) bool {
+	switch name {
+	case "__invoke", "handle", "execute":
+		return true
+	}
+	for _, prefix := range []string{"handle", "on"} {
+		if len(name) > len(prefix) && strings.HasPrefix(name, prefix) && name[len(prefix)] >= 'A' && name[len(prefix)] <= 'Z' {
+			return true
+		}
+	}
+	return false
 }

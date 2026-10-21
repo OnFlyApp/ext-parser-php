@@ -58,7 +58,7 @@ func TestWasm(t *testing.T) {
 	for _, c := range chunks {
 		types[c.Type] = true
 	}
-	for _, want := range []string{"namespace", "use", "enum", "enum_case", "class", "interface", "trait", "trait_use",
+	for _, want := range []string{"enum", "enum_case", "class", "interface", "trait", "trait_use",
 		"method", "property", "constant", "function", "closure", "statement", "anonymous_class"} {
 		if !types[want] {
 			t.Errorf("wasm output has no %q chunk", want)

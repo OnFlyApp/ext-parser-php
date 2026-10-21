@@ -14,8 +14,6 @@ Input is one file on stdin, argv[1] is its path, output is the standard `[]Chunk
 
 | `type` | Source node | Notes |
 |---|---|---|
-| `namespace` | `namespace_definition` | header only |
-| `use` | `namespace_use_declaration` | |
 | `class` `interface` `trait` `enum` | `*_declaration` | header only (docblock, attributes, signature); members are separate chunks |
 | `enum_case` `method` `property` `constant` `trait_use` | class body members | `receiver` = owning type |
 | `function` | `function_definition` | |
@@ -24,7 +22,21 @@ Input is one file on stdin, argv[1] is its path, output is the standard `[]Chunk
 | `statement` | other top-level code | consecutive statements merged |
 | `file` | whole file | fallback when nothing else matched |
 
-Metadata: `name`, `fqn`, `namespace`, `receiver`, `start_line`, `end_line`, and where they apply `signature`, `params`, `return_type`, `visibility`, `modifiers`, `attributes`, `extends`, `implements`, `backing_type`, `value`, `type`, `part`.
+Metadata: `name`, `fqn`, `namespace`, `receiver`, `start_line`, `end_line`, and where they apply `signature`, `params`, `return_type`, `visibility`, `modifiers`, `attributes`, `extends`, `implements`, `backing_type`, `value`, `type`, `part`, and the type names below.
+
+`namespace` and `use` statements are not chunks. The parser reads them to qualify type names, and the host reads the `use` lines from the source to resolve calls.
+
+### Type names
+
+Names are fully qualified, through the file's `use` imports and namespace; scalar and pseudo types (`int`, `string`, `self`, `mixed`, ...) are left out.
+
+| Key | On | Value |
+|---|---|---|
+| `param_types` | `method`, `function` | the classes the parameters are typed with, in order, comma separated, no repeats. A promoted constructor parameter counts. |
+| `type_fqn` | `property` | the classes of the declared `type` (`?Foo`, `Foo\|Bar`), comma separated |
+| `handles` | `method` | the one class a handler or listener entry handles: the method is `__invoke`, `handle`, `execute`, `handle*` or `on*`, and its first parameter is typed with exactly one class (`handle(SomeCommand $c)`, `__invoke(SomeEvent $e)`). A union type gives nothing. |
+
+The host uses `handles` to connect the code that builds `SomeCommand` to the handler, since a bus, not a call, joins them.
 
 Docblocks and `#[Attributes]` are part of the chunk. Bodies over 8 KB are split at line boundaries (`part=1/3`). Files over 80 KiB are not parsed: they come back as plain `file` chunks (`reason=too_large`), and files over 2 MiB yield `[]`. The host cancels a parse at 5 s (and then keeps the stale chunks), while parsing costs about 11 ms/KB on a laptop and about 33 ms/KB on a CI-class machine. Declarations inside `if`/`try` blocks (`if (!function_exists(...)) { function ... }`) are chunked like top-level ones. Syntax errors do not fail the file: what parsed is chunked and a warning goes to stderr.
 

@@ -267,3 +267,38 @@ func TestBatchAnswersOneLinePerFile(t *testing.T) {
 		}
 	}
 }
+
+func TestHandlersAndTypeNames(t *testing.T) {
+	src, err := os.ReadFile("testdata/handlers.php")
+	if err != nil {
+		t.Fatal(err)
+	}
+	chunks, err := parse("handlers.php", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	by := map[string]map[string]string{}
+	for _, c := range chunks {
+		by[c.Type+" "+c.Metadata["name"]] = c.Metadata
+	}
+	const domain = `App\Billing\Domain\`
+	cases := []struct{ key, paramTypes, handles, typeFQN string }{
+		{"method __construct", `App\Billing\Application\Repo,App\Billing\Application\Calculator`, "", ""},
+		{"method __invoke", domain + "ClawBack", domain + "ClawBack", ""},
+		{"method handle", domain + "Refund," + domain + "Credit", "", ""}, // a union handles no one thing
+		{"method onRefunded", `Vendor\Events\Refunded`, `Vendor\Events\Refunded`, ""},
+		{"method handleCredit", domain + "Credit", domain + "Credit", ""},
+		{"method render", `App\Billing\Application\Other`, "", ""}, // not a handler name
+		{"method execute", "", "", ""},
+		{"property logger", "", "", `App\Billing\Application\Logger`},
+	}
+	for _, tc := range cases {
+		m, ok := by[tc.key]
+		if !ok {
+			t.Fatalf("no chunk %q", tc.key)
+		}
+		if m["param_types"] != tc.paramTypes || m["handles"] != tc.handles || m["type_fqn"] != tc.typeFQN {
+			t.Errorf("%s: param_types=%q handles=%q type_fqn=%q, want %q %q %q", tc.key, m["param_types"], m["handles"], m["type_fqn"], tc.paramTypes, tc.handles, tc.typeFQN)
+		}
+	}
+}
